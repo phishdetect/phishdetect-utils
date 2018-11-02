@@ -53,7 +53,7 @@ def main():
         print('Type: {}'.format(event['type']))
         print('Indicator: {}'.format(event['indicator']))
         print('Hashed: {}'.format(event['hashed']))
-        print('Target Contact: {}'.format(event['target_contact']))
+        print('User Contact: {}'.format(event['user_contact']))
         print('UUID: {}'.format(event['uuid']))
         print('')
 
