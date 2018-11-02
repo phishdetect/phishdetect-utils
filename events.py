@@ -22,13 +22,13 @@ import traceback
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch events from the PhishDetect Node")
-    parser.add_argument('--url', default='http://127.0.0.1:7856', help="URL to the PhishDetect Node")
+    parser.add_argument('--node', default='http://127.0.0.1:7856', help="URL to the PhishDetect Node")
     parser.add_argument('--key', required=True, help="The API key for your PhishDetect Node user")
     args = parser.parse_args()
 
     data = {'key': args.key}
 
-    url = args.url + '/api/events/fetch/'
+    url = args.node + '/api/events/fetch/'
 
     try:
         res = requests.post(url, json=data)
