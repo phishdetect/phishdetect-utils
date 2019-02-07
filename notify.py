@@ -98,7 +98,7 @@ def main():
                 else:
                     msg += "Unknown user"
 
-                match = event['type'].replace('http', 'hxxp')
+                match = event['match'].replace('http', 'hxxp')
                 match = match.replace('.', '[.]')
                 match = match.replace('@', '[@]')
 
