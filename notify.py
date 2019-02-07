@@ -80,7 +80,7 @@ def main():
     seen_events = load_events()
 
     while True:
-        time.sleep(1)
+        time.sleep(30)
 
         events = get_events(args.node, args.key)
         if 'error' in events:
