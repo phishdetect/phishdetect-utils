@@ -94,7 +94,7 @@ def main():
                 msg = ""
                 user = event['user_contact'].strip()
                 if user:
-                    msg += "User \"{}\"".format(['user_contact'])
+                    msg += "User \"{}\"".format(event['user_contact'])
                 else:
                     msg += "Unknown user"
 
