@@ -89,6 +89,8 @@ def main():
 
         for event in events:
             if event['uuid'] not in seen_events:
+                print("Got a new event with ID {}".format(event['uuid']))
+
                 msg = ""
                 user = event['user_contact'].strip()
                 if user:
@@ -100,7 +102,7 @@ def main():
                 match = match.replace('.', '[.]')
                 match = match.replace('@', '[@]')
 
-                msg = " triggered a {} alert for {}".format(event['type'], match)
+                msg += " triggered a {} alert for {}".format(event['type'], match)
 
                 send_notification(args.token, args.user, msg)
 
