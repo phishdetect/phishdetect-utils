@@ -21,6 +21,28 @@ import time
 import argparse
 import requests
 
+config_folder = os.path.join(os.getenv('HOME'), '.config', '.phishdetect')
+events_path = os.path.join(config_folder, 'events.txt')
+
+def load_events():
+    if not os.path.exists(config_folder):
+        os.makedirs(config_folder)
+        return []
+
+    if not os.path.exists(events_path):
+        return []
+
+    events = []
+    with open(events_path, 'r') as handle:
+        for line in handle:
+            line = line.strip()
+            if line == "":
+                continue
+
+            events.append(line)
+
+    return events
+
 def get_events(node, key):
     url = '{}/api/events/fetch/'.format(node)
     res = requests.post(url, json={'key': key})
@@ -30,13 +52,13 @@ def get_events(node, key):
     else:
         return None
 
-def send_notification(event, token, user):
+def send_notification(token, user, msg):
     url = 'https://api.pushover.net/1/messages.json'
     data = {
         'token': token,
         'user': user,
         'title': "New PhishDetect Event",
-        'message': "Received {} alert for {}".format(event['type'], event['indicator']),
+        'message': msg,
     }
     res = requests.post(url, data=data)
 
@@ -53,10 +75,10 @@ def main():
         not args.token or
         not args.user):
         parser.print_help()
-        print("ERROR: You need to provide ")
         sys.exit(-1)
 
-    seen_events = []
+    seen_events = load_events()
+
     while True:
         time.sleep(1)
 
@@ -67,9 +89,18 @@ def main():
 
         for event in events:
             if event['uuid'] not in seen_events:
-                print("Received new event")
-                send_notification(event, args.token, args.user)
+                msg = ""
+                if event['user_contact']:
+                    msg += "User \"{}\"".format(['user_contact'])
+                else:
+                    msg += "Unknown user"
+                msg = " triggered a {} alert for {}".format(event['type'], event['match'])
+
+                send_notification(args.token, args.user, msg)
+
                 seen_events.append(event['uuid'])
+                with open(events_path, 'a') as handle:
+                    handle.write('{}\n'.format(event['uuid']))
 
 if __name__ == '__main__':
     main()
