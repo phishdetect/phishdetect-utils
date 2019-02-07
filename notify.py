@@ -21,7 +21,7 @@ import time
 import argparse
 import requests
 
-config_folder = os.path.join(os.getenv('HOME'), '.config', '.phishdetect')
+config_folder = os.path.join(os.getenv('HOME'), '.config', 'phishdetect')
 events_path = os.path.join(config_folder, 'events.txt')
 
 def load_events():
@@ -90,11 +90,17 @@ def main():
         for event in events:
             if event['uuid'] not in seen_events:
                 msg = ""
-                if event['user_contact']:
+                user = event['user_contact'].strip()
+                if user:
                     msg += "User \"{}\"".format(['user_contact'])
                 else:
                     msg += "Unknown user"
-                msg = " triggered a {} alert for {}".format(event['type'], event['match'])
+
+                match = event['type'].replace('http', 'hxxp')
+                match = match.replace('.', '[.]')
+                match = match.replace('@', '[@]')
+
+                msg = " triggered a {} alert for {}".format(event['type'], match)
 
                 send_notification(args.token, args.user, msg)
 
