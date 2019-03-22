@@ -129,7 +129,7 @@ def main():
                         else:
                             msg += "Unknown user"
 
-                        msg += " shared a raw message of type \"{}\" with UUID \"{}\"".format(message['type'], message['uuid'])
+                        msg += " shared a raw message of type \"{}\" with UUID {}".format(message['type'], message['uuid'])
 
                         send_notification(args.token, args.user, msg)
 
