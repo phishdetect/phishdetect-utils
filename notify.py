@@ -21,19 +21,21 @@ import time
 import argparse
 import requests
 
-config_folder = os.path.join(os.getenv('HOME'), '.config', 'phishdetect')
-events_path = os.path.join(config_folder, 'events.txt')
+storage_folder = os.path.join(os.getenv('HOME'), '.config', 'phishdetect')
+# config_path = os.path.join(storage_folder, 'config')
+events_path = os.path.join(storage_folder, 'events')
+raw_path = os.path.join(storage_folder, 'raw')
 
-def load_events():
-    if not os.path.exists(config_folder):
-        os.makedirs(config_folder)
+def load_data(file_path):
+    if not os.path.exists(storage_folder):
+        os.makedirs(storage_folder)
         return []
 
-    if not os.path.exists(events_path):
+    if not os.path.exists(file_path):
         return []
 
     events = []
-    with open(events_path, 'r') as handle:
+    with open(file_path, 'r') as handle:
         for line in handle:
             line = line.strip()
             if line == "":
@@ -43,8 +45,8 @@ def load_events():
 
     return events
 
-def get_events(node, key):
-    url = '{}/api/events/fetch/'.format(node)
+def make_api_request(node, key, api):
+    url = '{}/api/{}/fetch/'.format(node, api)
     res = requests.post(url, json={'key': key})
 
     if res.status_code == 200:
@@ -66,6 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch events from the PhishDetect Node")
     parser.add_argument('--node', default=os.getenv('PDNODE', 'http://127.0.0.1:7856'), help="URL to the PhishDetect Node (default env PDNODE)")
     parser.add_argument('--key', default=os.getenv('PDKEY', None), help="The API key for your PhishDetect Node user (default env PDKEY)")
+    parser.add_argument('--raw', default=os.GETENV('PDRAW', False), help="Notify also for raw messages being shared by users")
     parser.add_argument('--token', default=os.getenv('POTOKEN', None), help="The Pushover token (default env POTOKEN)")
     parser.add_argument('--user', default=os.getenv('POUSER', None), help="The Pushover user (default env POUSER)")
     args = parser.parse_args()
@@ -77,38 +80,62 @@ def main():
         parser.print_help()
         sys.exit(-1)
 
-    seen_events = load_events()
+    seen_events = load_data(events_path)
+    seen_messages = load_messages(raw_path)
 
     while True:
         time.sleep(30)
 
-        events = get_events(args.node, args.key)
+        events = make_api_request(args.node, args.key, 'events')
         if 'error' in events:
             print("ERROR: {}".format(events['error']))
-            sys.exit(-1)
+        else:
+            for event in events:
+                if event['uuid'] not in seen_events:
+                    print("Got a new event with ID {}".format(event['uuid']))
 
-        for event in events:
-            if event['uuid'] not in seen_events:
-                print("Got a new event with ID {}".format(event['uuid']))
+                    msg = ""
+                    user = event['user_contact'].strip()
+                    if user:
+                        msg += "User \"{}\"".format(event['user_contact'])
+                    else:
+                        msg += "Unknown user"
 
-                msg = ""
-                user = event['user_contact'].strip()
-                if user:
-                    msg += "User \"{}\"".format(event['user_contact'])
-                else:
-                    msg += "Unknown user"
+                    match = event['match'].replace('http', 'hxxp')
+                    match = match.replace('.', '[.]')
+                    match = match.replace('@', '[@]')
 
-                match = event['match'].replace('http', 'hxxp')
-                match = match.replace('.', '[.]')
-                match = match.replace('@', '[@]')
+                    msg += " triggered a {} alert for {}".format(event['type'], match)
 
-                msg += " triggered a {} alert for {}".format(event['type'], match)
+                    send_notification(args.token, args.user, msg)
 
-                send_notification(args.token, args.user, msg)
+                    seen_events.append(event['uuid'])
+                    with open(events_path, 'a') as handle:
+                        handle.write('{}\n'.format(event['uuid']))
 
-                seen_events.append(event['uuid'])
-                with open(events_path, 'a') as handle:
-                    handle.write('{}\n'.format(event['uuid']))
+        if args.raw:
+            messages = make_api_request(args.node, args.key, 'raw')
+            if 'error' in messages:
+                print("ERROR: {}".format(messages['error']))
+            else:
+                for message in messages:
+                    if message['uuid'] not in seen_messages:
+                        print("Got a new raw message with ID {}".format(message['uuid']))
+
+                        msg = ""
+                        user = message['user_contact'].strip()
+                        if user:
+                            msg += "User \"{}\"".format(message['user_contact'])
+                        else:
+                            msg += "Unknown user"
+
+                        msg += " shared a raw message of type \"{}\" with UUID \"{}\"".format(message['type'], message['uuid'])
+
+                        send_notification(args.token, args.user, msg)
+
+                        seen_messages.append(message['uuid'])
+                        with open(raw_path, 'a') as handle:
+                            handle.write('{}\n'.format(message['uuid']))
 
 if __name__ == '__main__':
     main()
