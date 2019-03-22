@@ -81,7 +81,7 @@ def main():
         sys.exit(-1)
 
     seen_events = load_data(events_path)
-    seen_messages = load_messages(raw_path)
+    seen_messages = load_data(raw_path)
 
     while True:
         time.sleep(30)
