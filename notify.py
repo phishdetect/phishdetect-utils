@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch events from the PhishDetect Node")
     parser.add_argument('--node', default=os.getenv('PDNODE', 'http://127.0.0.1:7856'), help="URL to the PhishDetect Node (default env PDNODE)")
     parser.add_argument('--key', default=os.getenv('PDKEY', None), help="The API key for your PhishDetect Node user (default env PDKEY)")
-    parser.add_argument('--raw', type=bool, default=False, help="Notify also for raw messages being shared by users")
+    parser.add_argument('--raw', action='store_true', default=False, help="Notify also for raw messages being shared by users")
     parser.add_argument('--token', default=os.getenv('POTOKEN', None), help="The Pushover token (default env POTOKEN)")
     parser.add_argument('--user', default=os.getenv('POUSER', None), help="The Pushover user (default env POUSER)")
     args = parser.parse_args()
