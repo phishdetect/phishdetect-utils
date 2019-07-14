@@ -87,6 +87,11 @@ def main():
         time.sleep(30)
 
         events = make_api_request(args.node, args.key, 'events')
+        if not events:
+            print("ERROR: results is none")
+            print(events)
+            continue
+
         if 'error' in events:
             print("ERROR: {}".format(events['error']))
         else:
