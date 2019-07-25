@@ -86,10 +86,14 @@ def main():
     while True:
         time.sleep(30)
 
-        events = make_api_request(args.node, args.key, 'events')
-        if not events:
-            print("ERROR: results is none")
-            print(events)
+        try:
+            events = make_api_request(args.node, args.key, 'events')
+            if not events:
+                print("ERROR: results is none")
+                print(events)
+                continue
+        except:
+            print("ERROR: Unable to connect to PhishDetect")
             continue
 
         if 'error' in events:
