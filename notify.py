@@ -89,8 +89,7 @@ def main():
         try:
             events = make_api_request(args.node, args.key, 'events')
             if not events:
-                print("ERROR: results is none")
-                print(events)
+                print("ERROR: Response is empty")
                 continue
         except:
             print("ERROR: Unable to connect to PhishDetect")
@@ -123,7 +122,15 @@ def main():
                         handle.write('{}\n'.format(event['uuid']))
 
         if args.raw:
-            messages = make_api_request(args.node, args.key, 'raw')
+            try:
+                messages = make_api_request(args.node, args.key, 'raw')
+                if not messages:
+                    print("ERROR: Response is empty")
+                    continue
+            except:
+                print("ERROR: Unable to connect to PhishDetect")
+                continue
+
             if 'error' in messages:
                 print("ERROR: {}".format(messages['error']))
             else:
