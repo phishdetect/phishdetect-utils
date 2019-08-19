@@ -46,8 +46,8 @@ def load_data(file_path):
     return events
 
 def make_api_request(node, key, api):
-    url = '{}/api/{}/fetch/'.format(node, api)
-    res = requests.post(url, json={'key': key})
+    url = '{}/api/{}/fetch/?key='.format(node, api, key)
+    res = requests.get(url)
 
     if res.status_code == 200:
         return res.json()
