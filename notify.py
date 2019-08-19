@@ -181,7 +181,7 @@ def main():
                         msg = "Received a registration request for \"{}\" with email {}".format(reg['name'], reg['email'])
                         send_notification(args.token, args.user, msg)
 
-                        seen_messages.append(reg['key'])
+                        seen_regs.append(reg['key'])
                         with open(regs_path, 'a') as handle:
                             handle.write('{}\n'.format(reg['key']))
 
