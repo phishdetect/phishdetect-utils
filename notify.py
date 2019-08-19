@@ -34,6 +34,8 @@ def load_data(file_path):
     if not os.path.exists(file_path):
         return []
 
+    print("Parsing {}".format(file_path))
+
     events = []
     with open(file_path, 'r') as handle:
         for line in handle:
@@ -41,6 +43,7 @@ def load_data(file_path):
             if line == "":
                 continue
 
+            print("  - adding {}".format(line))
             events.append(line)
 
     return events
