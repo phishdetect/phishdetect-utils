@@ -155,7 +155,6 @@ def main():
                             msg += "Unknown user"
 
                         msg += " shared a raw message of type \"{}\" with UUID {}".format(message['type'], message['uuid'])
-
                         send_notification(args.token, args.user, msg)
 
                         seen_messages.append(message['uuid'])
@@ -181,6 +180,8 @@ def main():
 
                         msg = "Received a registration request for \"{}\" with email {}".format(reg['name'], reg['email'])
                         send_notification(args.token, args.user, msg)
+
+                        seen_messages.append(reg['key'])
                         with open(regs_path, 'a') as handle:
                             handle.write('{}\n'.format(reg['key']))
 
