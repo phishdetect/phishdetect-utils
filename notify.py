@@ -174,7 +174,7 @@ def main():
             else:
                 for reg in regs:
                     if reg['key'] not in seen_regs:
-                        print("Got a new registration")
+                        print("Got a new registration for {}".format(reg['email']))
 
                         msg = "Received a registration request for \"{}\" with email {}".format(reg['name'], reg['email'])
                         send_notification(args.token, args.user, msg)
