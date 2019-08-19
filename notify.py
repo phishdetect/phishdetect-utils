@@ -93,7 +93,7 @@ def main():
     seen_regs = load_data(regs_path)
 
     while True:
-        time.sleep(30)
+        time.sleep(60)
 
         try:
             events = make_api_request(args.node, args.key, 'events')
