@@ -24,7 +24,7 @@ import requests
 storage_folder = os.path.join(os.getenv('HOME'), '.config', 'phishdetect')
 events_path = os.path.join(storage_folder, 'events')
 raw_path = os.path.join(storage_folder, 'raw')
-regs_path = os.path.join(storage_folder, 'regs')
+users_path = os.path.join(storage_folder, 'users')
 
 def load_data(file_path):
     if not os.path.exists(storage_folder):
@@ -49,8 +49,8 @@ def load_data(file_path):
     return events
 
 def make_api_request(node, key, api):
-    if api == 'registration':
-        url = '{}/api/registration/pending/?key={}'.format(node, key)
+    if api == 'users':
+        url = '{}/api/users/pending/?key={}'.format(node, key)
     else:
         url = '{}/api/{}/fetch/?key={}'.format(node, api, key)
 
@@ -76,7 +76,7 @@ def main():
     parser.add_argument('--node', default=os.getenv('PDNODE', 'http://127.0.0.1:7856'), help="URL to the PhishDetect Node (default env PDNODE)")
     parser.add_argument('--key', default=os.getenv('PDKEY', None), help="The API key for your PhishDetect Node user (default env PDKEY)")
     parser.add_argument('--raw', action='store_true', default=False, help="Notify also for raw messages being shared by users")
-    parser.add_argument('--regs', action='store_true', default=False, help="Notify also for registration requests")
+    parser.add_argument('--users', action='store_true', default=False, help="Notify also for users requests")
     parser.add_argument('--token', default=os.getenv('POTOKEN', None), help="The Pushover token (default env POTOKEN)")
     parser.add_argument('--user', default=os.getenv('POUSER', None), help="The Pushover user (default env POUSER)")
     args = parser.parse_args()
@@ -90,7 +90,7 @@ def main():
 
     seen_events = load_data(events_path)
     seen_messages = load_data(raw_path)
-    seen_regs = load_data(regs_path)
+    seen_users = load_data(users_path)
 
     while True:
         time.sleep(60)
@@ -161,29 +161,29 @@ def main():
                         with open(raw_path, 'a') as handle:
                             handle.write('{}\n'.format(message['uuid']))
 
-        if args.regs:
+        if args.users:
             try:
-                regs = make_api_request(args.node, args.key, 'registration')
-                if not regs:
+                users = make_api_request(args.node, args.key, 'users')
+                if not users:
                     print("ERROR: Response is empty")
                     continue
             except:
                 print("ERROR: Unable to connect to PhishDetect")
                 continue
 
-            if 'error' in regs:
-                print("ERROR: {}".format(regs['error']))
+            if 'error' in users:
+                print("ERROR: {}".format(users['error']))
             else:
-                for reg in regs:
-                    if reg['key'] not in seen_regs:
-                        print("Got a new registration for {}".format(reg['email']))
+                for user in users:
+                    if user['key'] not in seen_users:
+                        print("Got a new users for {}".format(user['email']))
 
-                        msg = "Received a registration request for \"{}\" with email {}".format(reg['name'], reg['email'])
+                        msg = "Received a users request for \"{}\" with email {}".format(user['name'], user['email'])
                         send_notification(args.token, args.user, msg)
 
-                        seen_regs.append(reg['key'])
-                        with open(regs_path, 'a') as handle:
-                            handle.write('{}\n'.format(reg['key']))
+                        seen_users.append(user['key'])
+                        with open(users_path, 'a') as handle:
+                            handle.write('{}\n'.format(user['key']))
 
 if __name__ == '__main__':
     main()
