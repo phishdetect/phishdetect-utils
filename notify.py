@@ -20,11 +20,12 @@ import sys
 import time
 import argparse
 import requests
+import phishdetect
 
-storage_folder = os.path.join(os.getenv('HOME'), '.config', 'phishdetect')
-events_path = os.path.join(storage_folder, 'events')
-raw_path = os.path.join(storage_folder, 'raw')
-users_path = os.path.join(storage_folder, 'users')
+storage_folder = os.path.join(os.getenv("HOME"), ".config", "phishdetect")
+events_path = os.path.join(storage_folder, "events")
+reports_path = os.path.join(storage_folder, "reports")
+users_path = os.path.join(storage_folder, "users")
 
 def load_data(file_path):
     if not os.path.exists(storage_folder):
@@ -37,7 +38,7 @@ def load_data(file_path):
     print("Parsing {}".format(file_path))
 
     events = []
-    with open(file_path, 'r') as handle:
+    with open(file_path, "r") as handle:
         for line in handle:
             line = line.strip()
             if line == "":
@@ -48,37 +49,24 @@ def load_data(file_path):
 
     return events
 
-def make_api_request(node, key, api):
-    if api == 'users':
-        url = '{}/api/users/pending/?key={}'.format(node, key)
-    else:
-        url = '{}/api/{}/fetch/?key={}'.format(node, api, key)
-
-    res = requests.get(url)
-
-    if res.status_code == 200:
-        return res.json()
-    else:
-        return None
-
 def send_notification(token, user, msg):
-    url = 'https://api.pushover.net/1/messages.json'
+    url = "https://api.pushover.net/1/messages.json"
     data = {
-        'token': token,
-        'user': user,
-        'title': "New PhishDetect Event",
-        'message': msg,
+        "token": token,
+        "user": user,
+        "title": "New PhishDetect Event",
+        "message": msg,
     }
     res = requests.post(url, data=data)
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch events from the PhishDetect Node")
-    parser.add_argument('--node', default=os.getenv('PDNODE', 'http://127.0.0.1:7856'), help="URL to the PhishDetect Node (default env PDNODE)")
-    parser.add_argument('--key', default=os.getenv('PDKEY', None), help="The API key for your PhishDetect Node user (default env PDKEY)")
-    parser.add_argument('--raw', action='store_true', default=False, help="Notify also for raw messages being shared by users")
-    parser.add_argument('--users', action='store_true', default=False, help="Notify also for users requests")
-    parser.add_argument('--token', default=os.getenv('POTOKEN', None), help="The Pushover token (default env POTOKEN)")
-    parser.add_argument('--user', default=os.getenv('POUSER', None), help="The Pushover user (default env POUSER)")
+    parser.add_argument("--node", default=os.getenv("PDNODE", "http://127.0.0.1:7856"), help="URL to the PhishDetect Node (default env PDNODE)")
+    parser.add_argument("--key", default=os.getenv("PDKEY", None), help="The API key for your PhishDetect Node user (default env PDKEY)")
+    parser.add_argument("--raw", action="store_true", default=False, help="Notify also for raw messages being shared by users")
+    parser.add_argument("--users", action="store_true", default=False, help="Notify also for users requests")
+    parser.add_argument("--token", default=os.getenv("POTOKEN", None), help="The Pushover token (default env POTOKEN)")
+    parser.add_argument("--user", default=os.getenv("POUSER", None), help="The Pushover user (default env POUSER)")
     args = parser.parse_args()
 
     if (not args.node or
@@ -89,14 +77,16 @@ def main():
         sys.exit(-1)
 
     seen_events = load_data(events_path)
-    seen_messages = load_data(raw_path)
+    seen_reports = load_data(reports_path)
     seen_users = load_data(users_path)
+
+    pd = phishdetect.PhishDetect(host=args.node, api_key=args.key)
 
     while True:
         time.sleep(60)
 
         try:
-            events = make_api_request(args.node, args.key, 'events')
+            events = pd.events.fetch()
             if not events:
                 print("ERROR: Response is empty")
                 continue
@@ -104,66 +94,66 @@ def main():
             print("ERROR: Unable to connect to PhishDetect")
             continue
 
-        if 'error' in events:
-            print("ERROR: {}".format(events['error']))
+        if "error" in events:
+            print("ERROR: {}".format(events["error"]))
         else:
             for event in events:
-                if event['uuid'] not in seen_events:
-                    print("Got a new event with ID {}".format(event['uuid']))
+                if event["uuid"] not in seen_events:
+                    print("Got a new event with ID {}".format(event["uuid"]))
 
                     msg = ""
-                    user = event['user_contact'].strip()
+                    user = event["user_contact"].strip()
                     if user:
-                        msg += "User \"{}\"".format(event['user_contact'])
+                        msg += "User \"{}\"".format(event["user_contact"])
                     else:
                         msg += "Unknown user"
 
-                    match = event['match'].replace('http', 'hxxp')
-                    match = match.replace('.', '[.]')
-                    match = match.replace('@', '[@]')
+                    match = event["match"].replace("http", "hxxp")
+                    match = match.replace(".", "[.]")
+                    match = match.replace("@", "[@]")
 
-                    msg += " triggered a {} alert for {}".format(event['type'], match)
+                    msg += " triggered a {} alert for {}".format(event["type"], match)
 
                     send_notification(args.token, args.user, msg)
 
-                    seen_events.append(event['uuid'])
-                    with open(events_path, 'a') as handle:
-                        handle.write('{}\n'.format(event['uuid']))
+                    seen_events.append(event["uuid"])
+                    with open(events_path, "a") as handle:
+                        handle.write("{}\n".format(event["uuid"]))
 
-        if args.raw:
+        if args.reports:
             try:
-                messages = make_api_request(args.node, args.key, 'raw')
-                if not messages:
+                reports = pd.reports.fetch()
+                if not reports:
                     print("ERROR: Response is empty")
                     continue
             except:
                 print("ERROR: Unable to connect to PhishDetect")
                 continue
 
-            if 'error' in messages:
-                print("ERROR: {}".format(messages['error']))
+            if "error" in reports:
+                print("ERROR: {}".format(reports["error"]))
             else:
-                for message in messages:
-                    if message['uuid'] not in seen_messages:
-                        print("Got a new raw message with ID {}".format(message['uuid']))
+                for report in reports:
+                    if report["uuid"] not in seen_reports:
+                        print("Got a new raw report with ID {}".format(report["uuid"]))
 
                         msg = ""
-                        user = message['user_contact'].strip()
+                        user = report["user_contact"].strip()
                         if user:
-                            msg += "User \"{}\"".format(message['user_contact'])
+                            msg += "User \"{}\"".format(report["user_contact"])
                         else:
                             msg += "Unknown user"
 
-                        msg += " shared a raw message of type \"{}\" with UUID {}".format(message['type'], message['uuid'])
+                        msg += " shared a raw report of type \"{}\" with UUID {}".format(report["type"], report["uuid"])
                         send_notification(args.token, args.user, msg)
 
-                        seen_messages.append(message['uuid'])
-                        with open(raw_path, 'a') as handle:
-                            handle.write('{}\n'.format(message['uuid']))
+                        seen_reports.append(report["uuid"])
+                        with open(reports_path, "a") as handle:
+                            handle.write("{}\n".format(report["uuid"]))
 
         if args.users:
             try:
-                users = make_api_request(args.node, args.key, 'users')
+                users = pd.users.get_pending()
                 if not users:
                     print("ERROR: Response is empty")
                     continue
@@ -171,19 +161,19 @@ def main():
                 print("ERROR: Unable to connect to PhishDetect")
                 continue
 
-            if 'error' in users:
-                print("ERROR: {}".format(users['error']))
+            if "error" in users:
+                print("ERROR: {}".format(users["error"]))
             else:
                 for user in users:
-                    if user['key'] not in seen_users:
-                        print("Got a new users for {}".format(user['email']))
+                    if user["key"] not in seen_users:
+                        print("Got a new user request for {}".format(user["email"]))
 
-                        msg = "Received a users request for \"{}\" with email {}".format(user['name'], user['email'])
+                        msg = "Received a users request for \"{}\" with email {}".format(user["name"], user["email"])
                         send_notification(args.token, args.user, msg)
 
-                        seen_users.append(user['key'])
-                        with open(users_path, 'a') as handle:
-                            handle.write('{}\n'.format(user['key']))
+                        seen_users.append(user["key"])
+                        with open(users_path, "a") as handle:
+                            handle.write("{}\n".format(user["key"]))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
