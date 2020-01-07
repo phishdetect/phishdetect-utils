@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PhishDetect
-# Copyright (C) 2018-2019  Claudio Guarnieri
+# Copyright (C) 2018-2020  Claudio Guarnieri
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -18,26 +18,21 @@
 import os
 import sys
 import argparse
-import requests
-import traceback
+import phishdetect
 
 def main():
     parser = argparse.ArgumentParser(description="Send indicators to the PhishDetect Node")
-    parser.add_argument('--node', default='http://127.0.0.1:7856', help="URL to the PhishDetect Node")
-    parser.add_argument('--key', required=True, help="The API key for your PhishDetect Node user")
-    parser.add_argument('--type', required=True, help="The type of indicator (\"domain\" or \"email\")")
-    parser.add_argument('--tags', help="Comma separated list of tags to to mark the indicator")
-    parser.add_argument('--single', metavar="IOC", help="Send this single indicator to PhishDetect Node")
-    parser.add_argument('--file', metavar="FILE", help="Send all indicators contained in this file to PhishDetect Node")
+    parser.add_argument("--node", default="http://127.0.0.1:7856", help="URL to the PhishDetect Node")
+    parser.add_argument("--key", required=True, help="The API key for your PhishDetect Node user")
+    parser.add_argument("--type", required=True, help="The type of indicator (\"domain\" or \"email\")")
+    parser.add_argument("--tags", help="Comma separated list of tags to to mark the indicator")
+    parser.add_argument("--single", metavar="IOC", help="Send this single indicator to PhishDetect Node")
+    parser.add_argument("--file", metavar="FILE", help="Send all indicators contained in this file to PhishDetect Node")
     args = parser.parse_args()
 
-    if not args.single and not args.file:
+    if (not args.single and not args.file) or (args.single and args.file):
         parser.print_help()
         print("\nERROR: You need to specify either --single or --file")
-        sys.exit(-1)
-    elif args.single and args.file:
-        parser.print_help()
-        print("\nERROR: You can't specify both --single and --file")
         sys.exit(-1)
 
     indicators = []
@@ -46,10 +41,10 @@ def main():
             print("ERROR: The file you specified at path {} does not exist.".format(args.file))
             sys.exit(-1)
 
-        with open(args.file, 'r') as handle:
+        with open(args.file, "r") as handle:
             for line in handle:
                 line = line.strip()
-                if line == '':
+                if line == "":
                     continue
 
                 if line not in indicators:
@@ -67,36 +62,19 @@ def main():
 
     tags = []
     if args.tags:
-        for tag in args.tags.split(','):
+        for tag in args.tags.split(","):
             tag = tag.strip()
-            if tag == '':
+            if tag == "":
                 continue
 
             if tag not in tags:
                 tags.append(tag)
 
-    if args.type != 'domain' and args.type != 'email':
-        parser.print_help()
-        print("\nERROR: You provided an invalid --type value")
-        sys.exit(-1)
+    pd = phishdetect.PhishDetect(host=args.node, api_key=args.key)
+    result = pd.indicators.add(indicators=indicators,
+        indicators_type=args.type, tags=tags)
 
-    data = {
-        'key': args.key,
-        'type': args.type,
-        'indicators': indicators,
-        'tags': tags,
-    }
+    print(result)
 
-    url = args.node + '/api/indicators/add/'
-
-    try:
-        res = requests.post(url, json=data)
-    except Exception as e:
-        traceback.print_exc()
-        sys.exit(-1)
-
-    print("Received response: {}".format(res.status_code))
-    print(res.content.decode('utf-8').strip())
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
