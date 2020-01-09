@@ -86,6 +86,8 @@ def main():
     pd = phishdetect.PhishDetect(host=args.node, api_key=args.key)
 
     while True:
+        print("Checking for new records to report...")
+
         try:
             events = pd.events.fetch()
             if not events:
