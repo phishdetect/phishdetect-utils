@@ -49,6 +49,10 @@ def load_data(file_path):
 
     return events
 
+def add_to_data(file_path, entry):
+    with open(file_path, "a") as handle:
+        handle.write("{}\n".format(entry))
+
 def send_notification(token, user, msg):
     url = "https://api.pushover.net/1/messages.json"
     data = {
@@ -63,10 +67,9 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch events from the PhishDetect Node")
     parser.add_argument("--node", default=os.getenv("PDNODE", "http://127.0.0.1:7856"), help="URL to the PhishDetect Node (default env PDNODE)")
     parser.add_argument("--key", default=os.getenv("PDKEY", None), help="The API key for your PhishDetect Node user (default env PDKEY)")
-    parser.add_argument("--reports", action="store_true", default=False, help="Notify also for reports being submitted by users")
-    parser.add_argument("--users", action="store_true", default=False, help="Notify also for users requests")
     parser.add_argument("--token", default=os.getenv("POTOKEN", None), help="The Pushover token (default env POTOKEN)")
     parser.add_argument("--user", default=os.getenv("POUSER", None), help="The Pushover user (default env POUSER)")
+    parser.add_argument("--delay", type=int, default=300, help="Define a delay in seconds between checks")
     args = parser.parse_args()
 
     if (not args.node or
@@ -83,53 +86,45 @@ def main():
     pd = phishdetect.PhishDetect(host=args.node, api_key=args.key)
 
     while True:
-        time.sleep(60)
-
         try:
             events = pd.events.fetch()
             if not events:
-                print("ERROR: Response is empty")
-                continue
+                raise Exception
         except:
             print("ERROR: Unable to connect to PhishDetect")
-            continue
-
-        if "error" in events:
-            print("ERROR: {}".format(events["error"]))
         else:
-            for event in events:
-                if event["uuid"] not in seen_events:
-                    print("Got a new event with ID {}".format(event["uuid"]))
+            if "error" in events:
+                print("ERROR: {}".format(events["error"]))
+            else:
+                for event in events:
+                    if event["uuid"] not in seen_events:
+                        print("Got a new event with ID {}".format(event["uuid"]))
 
-                    msg = ""
-                    user = event["user_contact"].strip()
-                    if user:
-                        msg += "User \"{}\"".format(event["user_contact"])
-                    else:
-                        msg += "Unknown user"
+                        msg = ""
+                        user = event["user_contact"].strip()
+                        if user:
+                            msg += "User \"{}\"".format(event["user_contact"])
+                        else:
+                            msg += "Unknown user"
 
-                    match = event["match"].replace("http", "hxxp")
-                    match = match.replace(".", "[.]")
-                    match = match.replace("@", "[@]")
+                        match = event["match"].replace("http", "hxxp")
+                        match = match.replace(".", "[.]")
+                        match = match.replace("@", "[@]")
 
-                    msg += " triggered a {} alert for {}".format(event["type"], match)
+                        msg += " triggered a {} alert for {}".format(event["type"], match)
 
-                    send_notification(args.token, args.user, msg)
+                        send_notification(args.token, args.user, msg)
 
-                    seen_events.append(event["uuid"])
-                    with open(events_path, "a") as handle:
-                        handle.write("{}\n".format(event["uuid"]))
+                        seen_events.append(event["uuid"])
+                        add_to_data(events_path, event["uuid"])
 
-        if args.reports:
-            try:
-                reports = pd.reports.fetch()
-                if not reports:
-                    print("ERROR: Response is empty")
-                    continue
-            except:
-                print("ERROR: Unable to connect to PhishDetect")
-                continue
-
+        try:
+            reports = pd.reports.fetch()
+            if not reports:
+                raise Exception
+        except:
+            print("ERROR: Unable to connect to PhishDetect")
+        else:
             if "error" in reports:
                 print("ERROR: {}".format(reports["error"]))
             else:
@@ -145,22 +140,19 @@ def main():
                             msg += "Unknown user"
 
                         msg += " shared a report of type \"{}\" with UUID {}".format(report["type"], report["uuid"])
+
                         send_notification(args.token, args.user, msg)
 
                         seen_reports.append(report["uuid"])
-                        with open(reports_path, "a") as handle:
-                            handle.write("{}\n".format(report["uuid"]))
+                        add_to_data(reports_path, report["uuid"])
 
-        if args.users:
-            try:
-                users = pd.users.get_pending()
-                if not users:
-                    print("ERROR: Response is empty")
-                    continue
-            except:
-                print("ERROR: Unable to connect to PhishDetect")
-                continue
-
+        try:
+            users = pd.users.get_pending()
+            if not users:
+                raise Exception
+        except:
+            print("ERROR: Unable to connect to PhishDetect")
+        else:
             if "error" in users:
                 print("ERROR: {}".format(users["error"]))
             else:
@@ -172,8 +164,9 @@ def main():
                         send_notification(args.token, args.user, msg)
 
                         seen_users.append(user["key"])
-                        with open(users_path, "a") as handle:
-                            handle.write("{}\n".format(user["key"]))
+                        add_to_data(users_path, user["key"])
+
+        time.sleep(args.delay)
 
 if __name__ == "__main__":
     main()
