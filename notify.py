@@ -20,12 +20,16 @@ import sys
 import time
 import argparse
 import requests
+import traceback
 import phishdetect
 
 storage_folder = os.path.join(os.getenv("HOME"), ".config", "phishdetect")
 events_path = os.path.join(storage_folder, "events")
 reports_path = os.path.join(storage_folder, "reports")
 users_path = os.path.join(storage_folder, "users")
+
+class NothingToReport(Exception):
+    pass
 
 def load_data(file_path):
     if not os.path.exists(storage_folder):
@@ -91,9 +95,11 @@ def main():
         try:
             events = pd.events.fetch()
             if not events:
-                raise Exception
-        except:
-            print("ERROR: Unable to connect to PhishDetect")
+                raise NothingToReport
+        except NothingToReport:
+            pass
+        except Exception as e:
+            traceback.print_stack()
         else:
             if "error" in events:
                 print("ERROR: {}".format(events["error"]))
@@ -123,9 +129,11 @@ def main():
         try:
             reports = pd.reports.fetch()
             if not reports:
-                raise Exception
-        except:
-            print("ERROR: Unable to connect to PhishDetect")
+                raise NothingToReport
+        except NothingToReport:
+            pass
+        except Exception as e:
+            traceback.print_stack()
         else:
             if "error" in reports:
                 print("ERROR: {}".format(reports["error"]))
@@ -151,9 +159,11 @@ def main():
         try:
             users = pd.users.get_pending()
             if not users:
-                raise Exception
-        except:
-            print("ERROR: Unable to connect to PhishDetect")
+                raise NothingToReport
+        except NothingToReport:
+            pass
+        except Exception as e:
+            traceback.print_stack()
         else:
             if "error" in users:
                 print("ERROR: {}".format(users["error"]))
