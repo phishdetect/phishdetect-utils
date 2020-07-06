@@ -24,7 +24,7 @@ import traceback
 import phishdetect
 
 storage_folder = os.path.join(os.getenv("HOME"), ".config", "phishdetect")
-events_path = os.path.join(storage_folder, "events")
+alerts_path = os.path.join(storage_folder, "alerts")
 reports_path = os.path.join(storage_folder, "reports")
 users_path = os.path.join(storage_folder, "users")
 
@@ -41,7 +41,7 @@ def load_data(file_path):
 
     print("Parsing {}".format(file_path))
 
-    events = []
+    alerts = []
     with open(file_path, "r") as handle:
         for line in handle:
             line = line.strip()
@@ -49,9 +49,9 @@ def load_data(file_path):
                 continue
 
             print("  - adding {}".format(line))
-            events.append(line)
+            alerts.append(line)
 
-    return events
+    return alerts
 
 def add_to_data(file_path, entry):
     with open(file_path, "a") as handle:
@@ -68,7 +68,7 @@ def send_notification(token, user, msg):
     res = requests.post(url, data=data)
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch events from the PhishDetect Node")
+    parser = argparse.ArgumentParser(description="Fetch alerts from the PhishDetect Node")
     parser.add_argument("--node", default=os.getenv("PDNODE", "http://127.0.0.1:7856"), help="URL to the PhishDetect Node (default env PDNODE)")
     parser.add_argument("--key", default=os.getenv("PDKEY", None), help="The API key for your PhishDetect Node user (default env PDKEY)")
     parser.add_argument("--token", default=os.getenv("POTOKEN", None), help="The Pushover token (default env POTOKEN)")
@@ -83,7 +83,7 @@ def main():
         parser.print_help()
         sys.exit(-1)
 
-    seen_events = load_data(events_path)
+    seen_alerts = load_data(alerts_path)
     seen_reports = load_data(reports_path)
     seen_users = load_data(users_path)
 
@@ -93,38 +93,38 @@ def main():
         print("Checking for new records to report...")
 
         try:
-            events = pd.events.fetch()
-            if not events:
+            alerts = pd.alerts.fetch()
+            if not alerts:
                 raise NothingToReport
         except NothingToReport:
             pass
         except Exception as e:
             traceback.print_stack()
         else:
-            if "error" in events:
-                print("ERROR: {}".format(events["error"]))
+            if "error" in alerts:
+                print("ERROR: {}".format(alerts["error"]))
             else:
-                for event in events:
-                    if event["uuid"] not in seen_events:
-                        print("Got a new event with ID {}".format(event["uuid"]))
+                for alert in alerts:
+                    if alert["uuid"] not in seen_alerts:
+                        print("Got a new alert with ID {}".format(alert["uuid"]))
 
                         msg = ""
-                        user = event["user_contact"].strip()
+                        user = alert["user_contact"].strip()
                         if user:
-                            msg += "User \"{}\"".format(event["user_contact"])
+                            msg += "User \"{}\"".format(alert["user_contact"])
                         else:
                             msg += "Unknown user"
 
-                        match = event["match"].replace("http", "hxxp")
+                        match = alert["match"].replace("http", "hxxp")
                         match = match.replace(".", "[.]")
                         match = match.replace("@", "[@]")
 
-                        msg += " triggered a {} alert for {}".format(event["type"], match)
+                        msg += " triggered a {} alert for {}".format(alert["type"], match)
 
                         send_notification(args.token, args.user, msg)
 
-                        seen_events.append(event["uuid"])
-                        add_to_data(events_path, event["uuid"])
+                        seen_alerts.append(alert["uuid"])
+                        add_to_data(alerts_path, alert["uuid"])
 
         try:
             reports = pd.reports.fetch()
